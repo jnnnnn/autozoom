@@ -95,9 +95,17 @@ def getevents(service, N=10):
 
 def getzoomlink(event):
     text = ""
-    for field in ["location", "summary", "description"]:
-        text += event.get(field, "") + " "
+    # logger.info(str(event))
+    for field in [
+        "location",
+        "summary",
+        "description",
+        "hangoutLink",
+        "conferenceData",
+    ]:
+        text += str(event.get(field, "")) + " "
     matches = re.findall(r"https://[A-Za-z0-9.-]+.zoom.us/j/[A-Za-z0-9?=]+", text)
+    matches += re.findall(r"https://meet.google.com/[a-zA-Z0-9_-]+", text)
     return matches[0] if matches else None
 
 
