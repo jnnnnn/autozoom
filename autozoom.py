@@ -7,6 +7,9 @@ import time
 import logging
 import webbrowser
 
+from pathlib import Path
+curdir = Path(__file__).parent.absolute()
+
 try:
     logging.basicConfig(format="%(asctime)s %(message)s", level="INFO")
     logger = logging.getLogger()
@@ -34,15 +37,17 @@ def getcreds():
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
     # time.
-    if os.path.exists("token.pickle"):
-        with open("token.pickle", "rb") as token:
+    tokenpath = curdir/"token.pickle"
+    credspath = curdir / "credentials.json"
+    if os.path.exists(tokenpath):
+        with open(tokenpath, "rb") as token:
             creds = pickle.load(token)
     # If there are no (valid) credentials available, let the user log in.
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            if not os.path.exists("credentials.json"):
+            if not os.path.exists(credspath):
                 print(
                     """Visit this page and click "create credentials" to obtain a credentials.json file:
                 https://developers.google.com/calendar/quickstart/python
@@ -50,10 +55,10 @@ def getcreds():
                 )
                 exit()
             creds = InstalledAppFlow.from_client_secrets_file(
-                "credentials.json", SCOPES
+                credspath, SCOPES
             ).run_local_server(port=0)
         # Save the credentials for the next run
-        with open("token.pickle", "wb") as token:
+        with open(tokenpath, "wb") as token:
             pickle.dump(creds, token)
     return creds
 
@@ -130,7 +135,8 @@ def getzoomlink(event):
         "conferenceData",
     ]:
         text += str(event.get(field, "")) + " "
-    matches = re.findall(r"https://[A-Za-z0-9.-]+.zoom.us/j/[A-Za-z0-9?=]+", text)
+    matches = re.findall(
+        r"https://[A-Za-z0-9.-]+.zoom.us/j/[A-Za-z0-9?=]+", text)
     matches += re.findall(r"https://meet.google.com/[a-zA-Z0-9_-]+", text)
     return matches[0] if matches else None
 
