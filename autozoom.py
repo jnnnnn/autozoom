@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+
 from datetime import datetime, timedelta, timezone
 import pickle
 import os.path
@@ -8,6 +9,9 @@ import logging
 import webbrowser
 
 from pathlib import Path
+
+EMAIL = "" # leave blank to not filter by attendance status.
+
 curdir = Path(__file__).parent.absolute()
 
 try:
@@ -37,7 +41,7 @@ def getcreds():
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
     # time.
-    tokenpath = curdir/"token.pickle"
+    tokenpath = curdir / "token.pickle"
     credspath = curdir / "credentials.json"
     if os.path.exists(tokenpath):
         with open(tokenpath, "rb") as token:
@@ -63,10 +67,24 @@ def getcreds():
     return creds
 
 
+def attending(event):
+    if not EMAIL:
+        return True
+    attendees = [
+        a
+        for a in event.get("attendees", [])
+        if a.get("email") == EMAIL
+    ]
+    if not attendees:
+        logger.warn("You are not invited to this event, how is it on your calendar?")
+    return attendees and attendees[0].get("responseStatus") == "accepted"
+
+
 def getNextEvent(events):
     for event in events:
         title = event.get("summary", "<no summary>")
         logger.info(f"Inspecting event '{title}'")
+        logger.debug(event)
         zoomlink = getzoomlink(event)
         if not zoomlink:
             logger.info(f"zoomlink not found, skipping")
@@ -74,6 +92,9 @@ def getNextEvent(events):
         waittime = timeuntilstart(event)
         if waittime.total_seconds() < 0:
             logger.info(f"event has already started, skipping")
+            continue
+        if not attending(event):
+            logger.info(f"not attending, skipping")
             continue
         return zoomlink, waittime
     else:
@@ -86,6 +107,7 @@ def main():
 
     while True:
         zoomlink, waittime = getNextEvent(getevents(service))
+
         if zoomlink and waittime.total_seconds() < CHECK_INTERVAL_MINUTES * 60:
             logger.info(f"zoom-linked event starting in {waittime}...")
             # connecting takes about seven seconds, so start connecting early
@@ -135,8 +157,7 @@ def getzoomlink(event):
         "conferenceData",
     ]:
         text += str(event.get(field, "")) + " "
-    matches = re.findall(
-        r"https://[A-Za-z0-9.-]+.zoom.us/j/[A-Za-z0-9?=]+", text)
+    matches = re.findall(r"https://[A-Za-z0-9.-]+.zoom.us/j/[A-Za-z0-9?=]+", text)
     matches += re.findall(r"https://meet.google.com/[a-zA-Z0-9_-]+", text)
     return matches[0] if matches else None
 
@@ -145,7 +166,7 @@ def timeuntilstart(event):
     start = datetime.fromisoformat(
         event["start"].get("dateTime", event["start"].get("date"))
     )
-    return start - datetime.now(timezone.utc)
+    return start - datetime.now(timezone.utc) - timedelta(minutes=1)
 
 
 if __name__ == "__main__":
