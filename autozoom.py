@@ -91,7 +91,7 @@ def getNextEvent(events):
             continue
         waittime = timeuntilstart(event)
         if waittime.total_seconds() < 0:
-            logger.info(f"event has already started, skipping")
+            logger.info(f"event has already started, skipping. Zoomlink: {zoomlink}")
             continue
         if not attending(event):
             logger.info(f"not attending, skipping")
